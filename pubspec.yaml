@@ -17,6 +17,8 @@ dependencies:
       ref: main
 
   socket_io_client: ^3.1.2
+  dio: ^5.8.0+1
+  fluttertoast: ^8.2.12
 
 dependency_overrides:
   flutter_webrtc: ^0.13.1+hotfix.1
