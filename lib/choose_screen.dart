@@ -4,7 +4,7 @@ import 'package:frontend/producer_screen.dart';
 import 'package:frontend/widgets/outline_btn.dart';
 import 'package:frontend/widgets/filled_btn.dart';
 
-import 'widgets/stream_list_screen.dart';
+import 'stream_list_screen.dart';
 
 class ChooseScreen extends StatelessWidget {
   const ChooseScreen({super.key});

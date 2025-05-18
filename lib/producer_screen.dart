@@ -31,7 +31,12 @@ class _ProducerScreenState extends State<ProducerScreen> {
   MediaStreamTrack? _audioTrack;
   MediaStreamTrack? _videoTrack;
   String roomID = "";
-  String user = "host_1";
+  bool isProducing = false;
+  final TextEditingController userController = TextEditingController();
+
+  bool isCameraOn = true;
+  bool isMicOn = true;
+
   @override
   void initState() {
     Future.delayed(Duration.zero, () async {
@@ -59,6 +64,8 @@ class _ProducerScreenState extends State<ProducerScreen> {
         actions: [
           IconButton(
             onPressed: () {
+              log(roomID);
+
               leaveStream();
             },
             icon: Icon(
@@ -75,37 +82,106 @@ class _ProducerScreenState extends State<ProducerScreen> {
           objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
         ),
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: FilledBtn(
-          onClick: () async {
-            {
-              try {
-                Response response =
-                    await dio.post('http://192.168.1.125:3000/live', data: {
-                  "astrologerId": user,
-                });
-                log(response.data.toString());
-                socket!.emit("joinRoom", {
-                  'roomId': response.data.toString(),
-                  'user': 'admin',
-                });
-              } on DioException catch (e) {
-                if (e.response!.statusCode == 400) {
-                  await Fluttertoast.showToast(msg: 'Room already exists');
-                  socket!.emit("joinRoom", {
-                    'roomId': e.response!.data['message'].toString(),
-                    'user': 'admin',
-                  });
-                }
-              } catch (e) {
-                log('$e');
-              }
-            }
-          },
-        ),
-      ),
+      bottomNavigationBar: isProducing
+          ? Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: SizedBox(
+                width: MediaQuery.of(context).size.width,
+                height: 50,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        toggleCamera();
+                      },
+                      icon: Icon(
+                          isCameraOn ? Icons.videocam : Icons.videocam_off),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        toggleMic();
+                      },
+                      icon: Icon(isMicOn ? Icons.mic : Icons.mic_off),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: SizedBox(
+                width: MediaQuery.of(context).size.width,
+                height: 50,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    SizedBox(
+                      height: 50,
+                      width: MediaQuery.of(context).size.width / 2,
+                      child: TextField(
+                        controller: userController,
+                        decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            labelText: 'User Id',
+                            hintText: "host_123"),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 50,
+                      width: 180,
+                      child: FilledBtn(
+                        onClick: userController.text.isEmpty
+                            ? () {
+                                log("ID is empty");
+                              }
+                            : () async {
+                                {
+                                  try {
+                                    Response response = await dio.post(
+                                        'http://192.168.1.125:3000/live',
+                                        data: {
+                                          "astrologerId": userController.text,
+                                        });
+                                    log(response.data.toString());
+                                    socket!.emit("joinRoom", {
+                                      'roomId': response.data.toString(),
+                                      'user': 'admin',
+                                    });
+                                  } on DioException catch (e) {
+                                    if (e.response!.statusCode == 400) {
+                                      await Fluttertoast.showToast(
+                                          msg: 'Room already exists');
+                                      socket!.emit("joinRoom", {
+                                        'roomId': e.response!.data['message']
+                                            .toString(),
+                                        'user': 'admin',
+                                      });
+                                    }
+                                  } catch (e) {
+                                    log('$e');
+                                  }
+                                }
+                              },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
     );
+  }
+
+  Future<void> toggleCamera() async {
+    if (_videoTrack != null) {
+      if (_videoTrack!.enabled) {
+        _videoTrack!.enabled = false;
+      } else {
+        _videoTrack!.enabled = true;
+      }
+    }
+    isCameraOn = !isCameraOn;
+    setState(() {});
   }
 
   void socketLister() {
@@ -156,7 +232,7 @@ class _ProducerScreenState extends State<ProducerScreen> {
             'produce',
             {
               'roomId': roomID,
-              'userId': user,
+              'userId': userController.text,
               'transportId': sendTransport!.id,
               'kind': data['kind'],
               'rtpParameters': data['rtpParameters'].toMap(),
@@ -169,6 +245,8 @@ class _ProducerScreenState extends State<ProducerScreen> {
             try {
               log("Produced callback ${res['id']}");
               data['callback'](res['id']);
+              isProducing = true;
+              setState(() {});
             } catch (e) {
               log(e.toString());
             }
@@ -242,9 +320,14 @@ class _ProducerScreenState extends State<ProducerScreen> {
 
   Future<void> leaveStream() async {
     try {
+      log('$roomID');
       socket?.emit('leaveStream', {
         'roomId': roomID,
-        'user': {'type': 'admin', 'name': 'Astrologer', 'userId': user},
+        'user': {
+          'type': 'admin',
+          'name': 'Astrologer',
+          'userId': userController.text
+        },
       });
       _audioTrack?.stop();
       _videoTrack?.stop();
@@ -253,9 +336,23 @@ class _ProducerScreenState extends State<ProducerScreen> {
       _localRenderer.srcObject = null;
       await Fluttertoast.cancel();
       await Fluttertoast.showToast(msg: "Left the room");
-      Navigator.pop(context);
+      // ignore: use_build_context_synchronously
+      context.mounted ? Navigator.pop(context) : null;
     } catch (e) {
       log('$e');
     }
+  }
+
+  Future<void> toggleMic() async {
+    if (_audioTrack != null) {
+      if (_audioTrack!.enabled) {
+        _audioTrack!.enabled = false;
+      } else {
+        _audioTrack!.enabled = true;
+      }
+    }
+    setState(() {
+      isMicOn = !isMicOn;
+    });
   }
 }

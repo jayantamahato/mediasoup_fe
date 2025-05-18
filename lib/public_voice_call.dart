@@ -8,17 +8,17 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 import 'widgets/calling_sheet.dart';
 
-class ConsumerScreen extends StatefulWidget {
+class PublicVoiceCallConsumer extends StatefulWidget {
   final String astrologerId;
   final String roomId;
-  const ConsumerScreen(
+  const PublicVoiceCallConsumer(
       {super.key, required this.astrologerId, required this.roomId});
 
   @override
-  State<ConsumerScreen> createState() => _ConsumerScreenState();
+  State<PublicVoiceCallConsumer> createState() => _ConsumerScreenState();
 }
 
-class _ConsumerScreenState extends State<ConsumerScreen> {
+class _ConsumerScreenState extends State<PublicVoiceCallConsumer> {
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
   Device device = Device();
   RtpCapabilities? routerRtpCapabilities;
@@ -26,8 +26,9 @@ class _ConsumerScreenState extends State<ConsumerScreen> {
   Transport? receiveTransport;
   Map<String, dynamic> receiveTransportInfo = {};
   MediaStream? _remoteStream;
-  MediaStreamTrack? _remoteTrack;
   String userId = 'consumer_123';
+  bool isMicOn = true;
+  bool isSpeakerOn = true;
   @override
   void initState() {
     Future.delayed(Duration.zero, () async {
@@ -91,6 +92,8 @@ class _ConsumerScreenState extends State<ConsumerScreen> {
   @override
   void dispose() {
     _remoteRenderer.dispose();
+    _remoteStream?.dispose();
+
     socket!.emit("leaveRoom", {
       'roomId': widget.roomId,
       'user': 'user',
@@ -109,74 +112,84 @@ class _ConsumerScreenState extends State<ConsumerScreen> {
             SizedBox(
               height: MediaQuery.of(context).size.height,
               width: MediaQuery.of(context).size.width,
-              child: RotatedBox(
-                quarterTurns: 3,
-                child: RTCVideoView(
-                  _remoteRenderer,
-                  mirror: false,
-                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                ),
-              ),
-            ),
-            Positioned(
-              right: 5,
-              bottom: 65,
-              child: SizedBox(
-                height: 150,
-                width: 50,
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.white.withValues(alpha: 0.5),
-                      child: IconButton(
-                        onPressed: () async {
-                          showCallingSheet(
-                              context: context,
-                              astrologerId: widget.astrologerId,
-                              roomId: widget.roomId);
-                        },
-                        icon: Icon(Icons.call),
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height / 2,
+                    width: MediaQuery.of(context).size.width,
+                    child: RotatedBox(
+                      quarterTurns: 3,
+                      child: RTCVideoView(
+                        _remoteRenderer,
+                        mirror: false,
+                        objectFit:
+                            RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
                       ),
                     ),
-                    SizedBox(
-                      height: 10,
-                    ),
-                    CircleAvatar(
-                      backgroundColor: Colors.white.withValues(alpha: 0.5),
-                      child: IconButton(
-                        onPressed: () {},
-                        icon: Icon(
-                          Icons.wallet_giftcard_sharp,
+                  ),
+                  Container(
+                    color: Colors.blue,
+                    height: MediaQuery.of(context).size.height / 2,
+                    width: MediaQuery.of(context).size.width,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          height: 60,
+                          width: 60,
+                          child: CircleAvatar(
+                            child: Text(
+                              "J",
+                              style: TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
+                          ),
                         ),
-                      ),
-                    )
-                  ],
-                ),
+                        SizedBox(
+                          height: 20,
+                        ),
+                        Text("Connecting...")
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
             Positioned(
               bottom: 10,
               child: Container(
-                decoration: BoxDecoration(),
-                height: 65,
-                width: MediaQuery.of(context).size.width,
-                child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        SizedBox(
-                          height: 60,
-                          width: MediaQuery.of(context).size.width - 100,
-                          child: TextField(),
-                        ),
-                        CircleAvatar(
-                            backgroundColor:
-                                Colors.white.withValues(alpha: 0.5),
-                            child: IconButton(
-                                onPressed: () {}, icon: Icon(Icons.send)))
-                      ],
-                    )),
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                margin: EdgeInsets.only(left: 16, right: 16),
+                height: 60,
+                width: MediaQuery.of(context).size.width - 32,
+                decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(10)),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CircleAvatar(
+                      child:
+                          IconButton(onPressed: () {}, icon: Icon(Icons.mic)),
+                    ),
+                    CircleAvatar(
+                      child: IconButton(
+                          onPressed: () {}, icon: Icon(Icons.volume_up)),
+                    ),
+                    CircleAvatar(
+                      backgroundColor: Colors.red,
+                      child: IconButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          icon: Icon(
+                            Icons.call_end,
+                            color: Colors.white,
+                          )),
+                    )
+                  ],
+                ),
               ),
             )
           ],
@@ -267,4 +280,7 @@ class _ConsumerScreenState extends State<ConsumerScreen> {
       log("Error consuming media ${e.toString()}");
     }
   }
+
+  Future<void> micToggle() async {}
+  Future<void> speakerToggle() async {}
 }

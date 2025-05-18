@@ -60,8 +60,18 @@ class _StreamListScreenState extends State<StreamListScreen> {
                                 roomId: lives[index]['roomId'],
                               )));
                 },
-                title: Text(lives[index]['astrologerId']),
-                subtitle: Text(lives[index]['status']),
+                title: Text(
+                  "Host:" + lives[index]['astrologerId'],
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text("Room:" + lives[index]['roomId']),
+                trailing: Chip(
+                    avatar: Badge(
+                      backgroundColor: lives[index]['status'] == 'active'
+                          ? Colors.green
+                          : Colors.red,
+                    ),
+                    label: Text(lives[index]['status'])),
               );
             }),
       ),
