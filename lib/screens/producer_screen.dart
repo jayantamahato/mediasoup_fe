@@ -6,7 +6,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:mediasoup_client_flutter/mediasoup_client_flutter.dart';
 
-import 'socket_service.dart';
+import '../service/socket_service.dart';
+import '../widgets/show_incomming_call.dart';
 
 class ProducerScreen extends StatefulWidget {
   const ProducerScreen({super.key});
@@ -185,6 +186,49 @@ class _ProducerScreenState extends State<ProducerScreen> {
   }
 
   void socketLister() {
+    socket?.off('error');
+    socket?.on('error', (data) async {
+      log('$data');
+      await Fluttertoast.cancel();
+      await Fluttertoast.showToast(msg: data['message'].toString());
+    });
+    socket?.off('leave');
+    socket?.on('leave', (data) async {
+      log('$data');
+      await Fluttertoast.cancel();
+      await Fluttertoast.showToast(msg: data['name'] + " left the room");
+    });
+    socket?.off('liveEnd');
+    socket?.on('liveEnd', (data) async {
+      _localRenderer.srcObject = null;
+      stream?.dispose();
+      sendTransport?.close();
+      _localRenderer.srcObject = null;
+      await Fluttertoast.cancel();
+      await Fluttertoast.showToast(msg: "Live ended");
+    });
+    socket?.off('requestForPublicVoiceCall');
+    socket?.on('requestForPublicVoiceCall', (data) async {
+      log('requestForPublicVoiceCall $data');
+      showIncomingCall(
+        callback: () {
+          socket?.emit("acceptPublicVoiceCall", {
+            'roomId': data['roomId'],
+            'userId': data['userId'],
+            'userName': data['userName'],
+            'callType': 'public-voice',
+            'user': {
+              'type': 'admin',
+              'name': 'Astrologer',
+              'userId': userController.text
+            },
+          });
+        },
+        context: context,
+        title: "${data['userName']} requesting for public voice call",
+      );
+    });
+
     socket?.off('userJoined');
     socket?.on('userJoined', (data) {
       Fluttertoast.cancel();
@@ -294,27 +338,6 @@ class _ProducerScreenState extends State<ProducerScreen> {
         log(e.toString());
       }
       // return;
-    });
-    socket?.off('error');
-    socket?.on('error', (data) async {
-      log('$data');
-      await Fluttertoast.cancel();
-      await Fluttertoast.showToast(msg: data['message'].toString());
-    });
-    socket?.off('leave');
-    socket?.on('leave', (data) async {
-      log('$data');
-      await Fluttertoast.cancel();
-      await Fluttertoast.showToast(msg: data['name'] + " left the room");
-    });
-    socket?.off('liveEnd');
-    socket?.on('liveEnd', (data) async {
-      _localRenderer.srcObject = null;
-      stream?.dispose();
-      sendTransport?.close();
-      _localRenderer.srcObject = null;
-      await Fluttertoast.cancel();
-      await Fluttertoast.showToast(msg: "Live ended");
     });
   }
 

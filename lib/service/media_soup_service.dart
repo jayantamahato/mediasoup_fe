@@ -4,20 +4,20 @@ import 'package:mediasoup_client_flutter/mediasoup_client_flutter.dart';
 class MediaSoupService {
   final String _tag = "MediaSoupService";
   final Device _device = Device();
-  Future<bool> loadDevice(
+  Future<Device?> loadDevice(
       {required RtpCapabilities routerRtpCapabilities}) async {
     try {
       if (!_device.loaded) {
         await _device.load(routerRtpCapabilities: routerRtpCapabilities);
         log("_tag device loaded");
-        return true;
+        return _device;
       }
       log("_tag device already loaded");
-      return true;
+      return _device;
     } catch (e) {
       log("$_tag - loadDevice error: ${e.toString()}");
-      return false;
     }
+    return null;
   }
 
   Future<bool> canProduceAudio() async {
@@ -39,9 +39,10 @@ class MediaSoupService {
   }
 
   Future<Transport?> createReceiveTransport(
-      {required Map transportInfo}) async {
+      {required Map transportInfo, required Function callback}) async {
     try {
-      Transport transport = _device.createRecvTransportFromMap(transportInfo);
+      Transport transport = _device.createRecvTransportFromMap(transportInfo,
+          consumerCallback: callback);
       return transport;
     } catch (e) {
       log("$_tag - createConsumerTransport error: ${e.toString()}");

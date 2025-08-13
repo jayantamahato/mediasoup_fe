@@ -2,7 +2,7 @@ import 'dart:developer';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:frontend/consumer_screen.dart';
+import 'package:frontend/screens/consumer_screen.dart';
 
 class StreamListScreen extends StatefulWidget {
   const StreamListScreen({super.key});

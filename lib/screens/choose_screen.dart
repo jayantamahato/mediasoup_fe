@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/consumer_screen.dart';
-import 'package:frontend/producer_screen.dart';
+import 'package:frontend/screens/consumer_screen.dart';
+import 'package:frontend/screens/producer_screen.dart';
 import 'package:frontend/widgets/outline_btn.dart';
 import 'package:frontend/widgets/filled_btn.dart';
 

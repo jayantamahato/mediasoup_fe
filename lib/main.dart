@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/choose_screen.dart';
-import 'package:frontend/producer_screen.dart' show HostScreen;
+import 'package:frontend/screens/choose_screen.dart';
+import 'package:frontend/screens/producer_screen.dart' show HostScreen;
 import 'package:frontend/landing.dart';
-import 'socket_service.dart';
+import 'service/socket_service.dart';
 
 void main() {
   runApp(const MyApp());

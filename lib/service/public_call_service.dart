@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 class PublicCallService {
@@ -14,10 +16,6 @@ class PublicCallService {
     });
   }
 
-  void getRouterCapabilities({required String roomId}) {
-    socket.emit("getRouterRtpCapabilities", {"roomId": roomId});
-  }
-
   void requestForPublicVoiceCall(
       {required String userId, required userName, required roomId}) {
     Map body = {
@@ -25,6 +23,7 @@ class PublicCallService {
       'userName': userName,
       'roomId': roomId,
     };
+    log("requestForPublicVoiceCall $body");
     socket.emit("requestForPublicVoiceCall", body);
   }
 }

@@ -2,11 +2,12 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:frontend/socket_service.dart';
+import 'package:frontend/service/media_soup_service.dart';
+import 'package:frontend/service/socket_service.dart';
 import 'package:mediasoup_client_flutter/mediasoup_client_flutter.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
-import 'widgets/calling_sheet.dart';
+import '../widgets/calling_sheet.dart';
 
 class ConsumerScreen extends StatefulWidget {
   final String astrologerId;
@@ -19,14 +20,14 @@ class ConsumerScreen extends StatefulWidget {
 }
 
 class _ConsumerScreenState extends State<ConsumerScreen> {
+  final MediaSoupService _mediaSoupService = MediaSoupService();
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
-  Device device = Device();
+  Device? device;
   RtpCapabilities? routerRtpCapabilities;
   IO.Socket? socket;
   Transport? receiveTransport;
   Map<String, dynamic> receiveTransportInfo = {};
   MediaStream? _remoteStream;
-  MediaStreamTrack? _remoteTrack;
   String userId = 'consumer_123';
   @override
   void initState() {
@@ -47,25 +48,11 @@ class _ConsumerScreenState extends State<ConsumerScreen> {
       socket?.on("routerRtpCapabilities", (data) async {
         try {
           routerRtpCapabilities = RtpCapabilities.fromMap(data);
-          if (device.loaded) {
-            await Fluttertoast.cancel();
-            await Fluttertoast.showToast(msg: "Device already loaded");
+          device ??= await _mediaSoupService.loadDevice(
+              routerRtpCapabilities: routerRtpCapabilities!);
+          if (device!.loaded) {
             socket!.emit('createConsumerTransport', {"roomId": widget.roomId});
-            return;
           }
-          await device.load(routerRtpCapabilities: routerRtpCapabilities!);
-          setState(() {});
-          if (!device.canProduce(RTCRtpMediaType.RTCRtpMediaTypeVideo)) {
-            await Fluttertoast.cancel();
-            await Fluttertoast.showToast(msg: "Device can't produce video");
-            return;
-          }
-          if (!device.canProduce(RTCRtpMediaType.RTCRtpMediaTypeAudio)) {
-            await Fluttertoast.cancel();
-            await Fluttertoast.showToast(msg: "Device can't produce audio");
-            return;
-          }
-          socket!.emit('createConsumerTransport', {"roomId": widget.roomId});
         } catch (e) {
           log('ERROR:: $e');
         }
@@ -90,10 +77,15 @@ class _ConsumerScreenState extends State<ConsumerScreen> {
 
   @override
   void dispose() {
-    _remoteRenderer.dispose();
-    socket!.emit("leaveRoom", {
-      'roomId': widget.roomId,
-      'user': 'user',
+    Future.delayed(Duration.zero, () async {
+      await _remoteStream?.dispose();
+      await _remoteRenderer.dispose();
+      await receiveTransport?.close();
+      device = null;
+      socket!.emit("leaveRoom", {
+        'roomId': widget.roomId,
+        'user': 'user',
+      });
     });
     super.dispose();
   }
@@ -188,26 +180,11 @@ class _ConsumerScreenState extends State<ConsumerScreen> {
   Future<void> connectRcvTransport() async {
     try {
       _remoteStream ??= await createLocalMediaStream('remote');
-      receiveTransport = device.createRecvTransportFromMap(
-        receiveTransportInfo,
-        consumerCallback: (Consumer consumer, dynamic _) async {
-          log("Received ${consumer.track.kind} track with ID: ${consumer.track.id}");
 
-          _remoteStream!.addTrack(consumer.track);
-          if (consumer.track.kind == 'video') {
-            _remoteRenderer.srcObject = _remoteStream;
-          }
-          _remoteRenderer.srcObject ??= _remoteStream;
-          log('Audio track enabled: ${consumer.track.kind == "audio" ? consumer.track.enabled : "N/A"}');
-          log('Video track enabled: ${consumer.track.kind == "video" ? consumer.track.enabled : "N/A"}');
-
-          socket!.emit("consumerResume", {
-            'consumerId': consumer.id,
-          });
-          setState(() {});
-        },
+      receiveTransport = await _mediaSoupService.createReceiveTransport(
+        callback: consumerCallback,
+        transportInfo: receiveTransportInfo,
       );
-      setState(() {});
 
       receiveTransport!.on("connect", (Map data) {
         socket!.emit('receiveTransportConnect', {
@@ -231,7 +208,7 @@ class _ConsumerScreenState extends State<ConsumerScreen> {
   Future<void> consumeMedia() async {
     try {
       socket!.emit("consume", {
-        'rtpCapabilities': device.rtpCapabilities.toMap(),
+        'rtpCapabilities': device!.rtpCapabilities.toMap(),
         'roomId': widget.roomId,
         'userId': userId,
       });
@@ -261,10 +238,26 @@ class _ConsumerScreenState extends State<ConsumerScreen> {
         );
         socket!.emit("consumerResume");
       });
-
       setState(() {});
     } catch (e) {
       log("Error consuming media ${e.toString()}");
     }
+  }
+
+  Future<void> consumerCallback(Consumer consumer, dynamic _) async {
+    log("Received ${consumer.track.kind} track with ID: ${consumer.track.id}");
+
+    await _remoteStream!.addTrack(consumer.track);
+    if (consumer.track.kind == 'video') {
+      _remoteRenderer.srcObject = _remoteStream;
+    }
+    _remoteRenderer.srcObject ??= _remoteStream;
+    log('Audio track enabled: ${consumer.track.kind == "audio" ? consumer.track.enabled : "N/A"}');
+    log('Video track enabled: ${consumer.track.kind == "video" ? consumer.track.enabled : "N/A"}');
+
+    socket!.emit("consumerResume", {
+      'consumerId': consumer.id,
+    });
+    setState(() {});
   }
 }

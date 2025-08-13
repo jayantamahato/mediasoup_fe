@@ -1,7 +1,7 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
-import 'package:frontend/socket_service.dart';
+import 'package:frontend/service/socket_service.dart';
 import 'package:mediasoup_client_flutter/mediasoup_client_flutter.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
